@@ -11,7 +11,6 @@ import (
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
 	"github.com/panjf2000/gnet/v2/pkg/logging"
-	"github.com/panjf2000/gnet/v2/pkg/pool/goroutine"
 )
 
 type wsServer struct {
@@ -20,8 +19,7 @@ type wsServer struct {
 	addr                      string
 	atomicNumberOfConnections int64
 
-	bs   *broadcastService
-	pool *goroutine.Pool
+	bs *broadcastService
 }
 
 type broadcastService struct {
@@ -113,9 +111,7 @@ func (wss *wsServer) OnTraffic(conn gnet.Conn) gnet.Action {
 
 	logging.Infof("conn[%v] receive [op=%v] [msg=%v]", conn.RemoteAddr().String(), op, string(msg))
 
-	err = wss.pool.Submit(func() {
-		wss.bs.broadcastMessage(op, msg)
-	})
+	err = wss.bs.broadcastMessage(op, msg)
 
 	if err != nil {
 		logging.Warnf("conn[%v] [err=%v]", conn.RemoteAddr().String(), err.Error())
@@ -140,8 +136,6 @@ func main() {
 	flag.IntVar(&port, "port", 9000, "server port")
 	flag.Parse()
 
-	pool := goroutine.Default()
-
 	bs := &broadcastService{
 		connections: make(map[gnet.Conn]struct{}),
 	}
@@ -149,7 +143,6 @@ func main() {
 	wss := &wsServer{
 		addr: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 		bs:   bs,
-		pool: pool,
 	}
 
 	log.Println(
